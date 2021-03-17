@@ -1,2 +1,2 @@
 # TaskDistributor
-Distribute Tasks within different resolvers
+Distribute Tasks between different resolvers
