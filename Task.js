@@ -1,15 +1,34 @@
 import EventEmitter from "events"
 
 export default class Task extends EventEmitter  {
-  constructor(id, type, ctx, replace) {
+  constructor(id, type, ctx, opts, manager) {
     super();
-    this.replace = replace
+    this.manager = manager
     this.id = id
     this.type = type
     this.ctx = ctx
     this.previousStatus = null
     this.status = 'created' //taken done replaced timeout
     this.result = null
+    this.queuePosition = -1
+    this.maxResolveTime = opts.maxResolveTime || this.manager.defaultTaskOptions.maxResolveTime
+    this.replaceOnTimeout = opts.replaceOnTimeout || this.manager.defaultTaskOptions.replaceOnTimeout
+    this.timeout = null
+  }
+
+  place() {
+    this.changeStatus('placed')
+    this.manager.placeTaskInQueue(this)
+    return this
+  }
+
+  updateQueuePosition(newPosition) {
+    this.emit('queuePosition', newPosition)
+    this.queuePosition = newPosition
+  }
+
+  recreate() {
+    return this.manager.createTask(this.type, this.ctx)
   }
 
   #done(result = {}) {
@@ -19,6 +38,7 @@ export default class Task extends EventEmitter  {
   }
 
   resolve(results) {
+    if(this.status !== 'taken') return false
     this.#done({err: false, data: results})
   }
 
@@ -34,8 +54,14 @@ export default class Task extends EventEmitter  {
   }
 
   take(resolver = {}) {
-    this.resolver = resolver
-    this.changeStatus('taken')
+    if(this.status !== 'placed' && this.status !== 'created') return false
+    this.changeStatus('taken', resolver)
+    this.updateQueuePosition(0)
+    if(this.maxResolveTime) this.timeout = setTimeout(() => {
+      this.changeStatus('timeout')
+      if(--this.replaceOnTimeout > 0) this.place()
+    }, this.maxResolveTime)
+    return this
   }
 
   async getResults() {

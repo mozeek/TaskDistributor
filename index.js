@@ -1,38 +1,55 @@
 import Task from './Task.js'
 
 export default class TaskManager {
-  #clients; #tasks; #counter = 0
+  #queueForTaskType; #tasks; #counter = 0
   constructor() {
     this.#tasks = new Map
-    this.#clients = new Map
+    this.#queueForTaskType = new Map
+    this.defaultTaskOptions = {
+      maxResolveTime: 20000,
+      replaceOnTimeout: 2
+    }
   }
 
-  #getTaskClients(type) {
-    return this.#clients.get(type) || this.#clients.set(type, {
+  #getQueuesForTaskType(type) {
+    return this.#queueForTaskType.get(type) || this.#queueForTaskType.set(type, {
       freeResolvers: [],
       activeTasks: []
     }).get(type)
   }
 
-  #pushAwaitingTask(type, task) { //todo: rename
-    this.#getTaskClients(type).activeTasks.push(task)
+  #addNewTaskToQueue(type, task) {
+    return this.#getQueuesForTaskType(type).activeTasks.push(task)
   }
 
-  #pushFreeResolver(type, resolver) {
-    return this.#getTaskClients(type).freeResolvers.push(resolver)
+  #addFreeTaskResolver(type, resolver) {
+    return this.#getQueuesForTaskType(type).freeResolvers.push(resolver)
   }
 
-  #getActiveTask(type) {
-    return this.#getTaskClients(type).activeTasks.shift()
+  #updateQueuePositionsForTaskType(type) {
+    this.#getQueuesForTaskType(type).activeTasks.forEach((t, i) => {
+      t.updateQueuePosition(i+1)
+    })
   }
 
-  #getResolver(type) {
-    return this.#getTaskClients(type).freeResolvers.shift()
+  #getActiveTask(type, resolver) {
+    const task = this.#getQueuesForTaskType(type).activeTasks.shift()
+    if(!task) return null
+    process.nextTick(() => this.#updateQueuePositionsForTaskType(type))
+    //we nofity task that we want to take it.
+    //If task can not be taken (cancelled, (...done, taken already => this should not happen)) it'll return false
+    if(!task.take(resolver)) return this.#getActiveTask(type)
+    return task
   }
 
-  #create(type, ctx) {
+  #getFreeResolverForTaskType(type) {
+    return this.#getQueuesForTaskType(type).freeResolvers.shift()
+    //we should ask
+  }
+
+  #create(type, ctx, opts) {
     const id = this.#counter++
-    const task = new Task(id, type, ctx)
+    const task = new Task(id, type, ctx, opts, this)
     this.#tasks.set(id, task)
     return task
   }
@@ -41,21 +58,24 @@ export default class TaskManager {
     return this.#tasks.get(id)
   }
 
-  registrateResolver(type, resolver) {
-    const task = this.#getActiveTask(type)
+  registrateResolverForTaskType(resolver, type) {
+    const task = this.#getActiveTask(type, resolver)
     if(task) resolver(task)
-    else this.#pushFreeResolver(type, resolver)
+    else this.#addFreeTaskResolver(type, resolver)
   }
 
-  request(type, ctx) { //request to resolve task
-    const task = this.#create(type, ctx)
-    const resolver = this.#getResolver(type)
-    if(resolver) process.nextTick(() => resolver(task))
-    else this.#pushAwaitingTask(type, task)
+  placeTaskInQueue(task) {
+    const resolver = this.#getFreeResolverForTaskType(task.type)
+    if(resolver) process.nextTick(() => resolver(task.take()))
+    else task.updateQueuePosition(this.#addNewTaskToQueue(task.type, task))
     return task
   }
 
-  resolve(id, results) {
+  createTask(type, ctx, opts) {
+    return this.#create(type, ctx, opts)
+  }
+
+  resolveTaskID(id, results) {
     const task = this.getTaskByID(id)
     if(!task) return null
     else task.resolve(results)
