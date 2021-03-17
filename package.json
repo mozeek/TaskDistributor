@@ -1,0 +1,24 @@
+{
+    "type": "module",
+  "name": "TaskDistributor",
+  "version": "1.0.0",
+  "description": "Distribute Tasks between different resolvers",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mozeek/TaskDistributor.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mozeek/TaskDistributor/issues"
+  },
+  "homepage": "https://github.com/mozeek/TaskDistributor#readme"
+}
