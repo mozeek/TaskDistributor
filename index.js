@@ -60,8 +60,9 @@ export default class TaskManager {
 
   registrateResolverForTaskType(resolver, type) {
     const task = this.#getActiveTask(type, resolver)
-    if(task) resolver(task)
-    else this.#addFreeTaskResolver(type, resolver)
+    if(!task) return this.#addFreeTaskResolver(type, resolver)
+    resolver(task)
+    return 0
   }
 
   placeTaskInQueue(task) {
