@@ -61,7 +61,7 @@ export default class TaskManager {
   registrateResolverForTaskType(resolver, type) {
     const task = this.#getActiveTask(type, resolver)
     if(!task) return this.#addFreeTaskResolver(type, resolver)
-    resolver(task)
+    process.nextTick(() => {resolver(task)})
     return 0
   }
 

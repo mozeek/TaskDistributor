@@ -1,7 +1,7 @@
 import EventEmitter from "events"
 
 export default class Task extends EventEmitter  {
-  constructor(id, type, ctx, opts, manager) {
+  constructor(id, type, ctx, opts = {}, manager) {
     super();
     this.manager = manager
     this.id = id
