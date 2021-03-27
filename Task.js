@@ -12,12 +12,16 @@ export default class Task extends EventEmitter  {
     this.result = null
     this.queuePosition = -1
     this.maxResolveTime = opts.maxResolveTime || this.manager.defaultTaskOptions.maxResolveTime
-    this.replaceOnTimeout = opts.replaceOnTimeout || this.manager.defaultTaskOptions.replaceOnTimeout
+    // this.replaceOnTimeout = opts.replaceOnTimeout || this.manager.defaultTaskOptions.replaceOnTimeout
+    this.replaceOnRuntimeError = opts.replaceOnRuntimeError || this.manager.defaultTaskOptions.replaceOnRuntimeError
     this.timeout = null
   }
 
   place() {
-    this.changeStatus('placed')
+    if(this.status === 'placed')
+      return console.warn('trying to place the task that already placed')
+    if(status !== 'created') this.changeStatus('replaced')
+    else this.changeStatus('placed')
     this.manager.placeTaskInQueue(this)
     return this
   }
@@ -32,9 +36,16 @@ export default class Task extends EventEmitter  {
   }
 
   #done(result = {}) {
+    this.#clearTimeout()
     this.result = result
     this.changeStatus('done')
     this.removeAllListeners()
+  }
+
+  #clearTimeout() {
+    if(!this.timeout) return
+    clearTimeout(this.timeout)
+    this.timeout = null
   }
 
   resolve(results) {
@@ -42,14 +53,24 @@ export default class Task extends EventEmitter  {
     this.#done({err: false, data: results})
   }
 
-  cancel() {
-    this.#done({err: true, data: 'cancelled'})
+  cancel(reason = 'cancelled') {
+    this.#done({err: true, data: reason})
   }
+
+  resolvetimeError(type) {
+    if(--this.replaceOnRuntimeError) {
+      this.#clearTimeout()
+      this.place()
+    } else {
+      this.#done({err:true, data:type})
+    }
+  }
+
 
   changeStatus(status) {
     this.previousStatus = this.status
     this.status = status
-    this.emit('statusChange', this)
+    this.emit('status', this)
     this.emit(status, this)
   }
 
@@ -58,8 +79,8 @@ export default class Task extends EventEmitter  {
     this.changeStatus('taken', resolver)
     this.updateQueuePosition(0)
     if(this.maxResolveTime) this.timeout = setTimeout(() => {
-      this.changeStatus('timeout')
-      if(--this.replaceOnTimeout > 0) this.place()
+      if(this.status !== 'taken') return
+      this.resolvetimeError('timeout')
     }, this.maxResolveTime)
     return this
   }

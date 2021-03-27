@@ -7,7 +7,8 @@ export default class TaskManager {
     this.#queueForTaskType = new Map
     this.defaultTaskOptions = {
       maxResolveTime: 20000,
-      replaceOnTimeout: 2
+      replaceOnRuntimeError: 2
+      // replaceOnTimeout: 2
     }
   }
 
@@ -43,8 +44,10 @@ export default class TaskManager {
   }
 
   #getFreeResolverForTaskType(type) {
-    return this.#getQueuesForTaskType(type).freeResolvers.shift()
-    //we should ask
+    const resolver = this.#getQueuesForTaskType(type).freeResolvers.shift()
+    if(!resolver) return false
+    if(resolver.isStillActive()) return resolver
+    else return this.#getFreeResolverForTaskType(type)
   }
 
   #create(type, ctx, opts) {
@@ -61,7 +64,7 @@ export default class TaskManager {
   registrateResolverForTaskType(resolver, type) {
     const task = this.#getActiveTask(type, resolver)
     if(!task) return this.#addFreeTaskResolver(type, resolver)
-    process.nextTick(() => {resolver(task)})
+    process.nextTick(() => resolver(task))
     return 0
   }
 
