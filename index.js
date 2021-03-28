@@ -19,8 +19,13 @@ export default class TaskManager {
     }).get(type)
   }
 
-  #addNewTaskToQueue(type, task) {
-    return this.#getQueuesForTaskType(type).activeTasks.push(task)
+  #addNewTaskToQueue(type, task, priority) {
+    const tasks = this.#getQueuesForTaskType(type).activeTasks
+    switch(priority) {
+      default: case 0: return tasks.push(task)
+      case 1: tasks.splice(tasks.length-1, 0, task); return tasks.length
+      case 2: tasks.unshift(task); return 0
+    }
   }
 
   #addFreeTaskResolver(type, resolver) {
@@ -37,7 +42,7 @@ export default class TaskManager {
     const task = this.#getQueuesForTaskType(type).activeTasks.shift()
     if(!task) return null
     process.nextTick(() => this.#updateQueuePositionsForTaskType(type))
-    //we nofity task that we want to take it.
+    //we notity task that we want to take it.
     //If task can not be taken (cancelled, (...done, taken already => this should not happen)) it'll return false
     if(!task.take(resolver)) return this.#getActiveTask(type)
     return task
@@ -46,6 +51,7 @@ export default class TaskManager {
   #getFreeResolverForTaskType(type) {
     const resolver = this.#getQueuesForTaskType(type).freeResolvers.shift()
     if(!resolver) return false
+    // console.log(resolver)
     if(resolver.isStillActive()) return resolver
     else return this.#getFreeResolverForTaskType(type)
   }
@@ -68,10 +74,10 @@ export default class TaskManager {
     return 0
   }
 
-  placeTaskInQueue(task) {
+  placeTaskInQueue(task, priority) {
     const resolver = this.#getFreeResolverForTaskType(task.type)
     if(resolver) process.nextTick(() => resolver(task.take()))
-    else task.updateQueuePosition(this.#addNewTaskToQueue(task.type, task))
+    else task.updateQueuePosition(this.#addNewTaskToQueue(task.type, task, priority))
     return task
   }
 
