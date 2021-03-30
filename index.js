@@ -25,13 +25,21 @@ export default class TaskManager {
     const id = this.#counter++
     const queue = this.#getQueueForTaskType(type)
     const task = new Task(id, type, ctx, opts, this, queue)
-    this.#tasks.set('id', task)
+    this.#tasks.set(id, task)
     task.on(Task.state.FINISH, () => this.#tasks.delete(id))
     return task
   }
 
   getTaskByID(id) {
     return this.#tasks.get(id)
+  }
+
+  getTasksSize() {
+    return this.#tasks.size
+  }
+
+  getQueueSiseForTaskType(type) {
+    return this.#getQueueForTaskType(type).getSise()
   }
 
 }
