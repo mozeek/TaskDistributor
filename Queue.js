@@ -1,4 +1,6 @@
-export default class Queue { //todo: task priority
+//todo: task priority
+
+export default class Queue {
   #tasks = new Set() //active tasks
   #resolvers = new Set() //free resolvers
 
@@ -9,7 +11,7 @@ export default class Queue { //todo: task priority
   }
 
   #resolveTask(task, resolver) {
-    return resolver(...task.take())
+    return resolver(task.take())
   }
 
   addTask(task) {
