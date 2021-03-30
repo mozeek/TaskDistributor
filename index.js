@@ -8,7 +8,9 @@ export default class TaskManager {
 
   defaultTaskOptions = {
     maxResolveAwaitTime: 20000,
-    replaceOnResolvetimeError: 2
+    replaceOnResolvetimeError: 3,
+    repeatOnceResolved: 0,
+    repeatCooldown: 0
   }
 
   #getQueueForTaskType(type) {
@@ -24,7 +26,7 @@ export default class TaskManager {
     const queue = this.#getQueueForTaskType(type)
     const task = new Task(id, type, ctx, opts, this, queue)
     this.#tasks.set('id', task)
-    task.on('done', () => this.#tasks.delete(id))
+    task.on(Task.state.FINISH, () => this.#tasks.delete(id))
     return task
   }
 
@@ -33,10 +35,3 @@ export default class TaskManager {
   }
 
 }
-
-const tm = new TaskManager()
-tm.createTask('test', 'ctx').queue().once('done', results => console.log(results))
-tm.addResolver('test', (ctx, done, err) => {
-  console.log(ctx)
-  resolve(task.ctx)
-})
