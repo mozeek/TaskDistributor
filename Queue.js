@@ -34,7 +34,7 @@ export default class Queue {
     return this.#resolvers.delete(resolver)
   }
 
-  getSise() {
+  getSize() {
     return [this.#tasks.size, this.#resolvers.size]
   }
 

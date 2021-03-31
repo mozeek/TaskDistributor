@@ -90,9 +90,9 @@ export default class Task extends EventEmitter  {
     this.queue()
   }
 
-  cancel() {
+  cancel(reason = 'cancelled by creator') {
       this.unqueue()
-      this.#setResults('cancelled by creator')
+      this.#setResults(reason)
       this.#finish()
   }
 

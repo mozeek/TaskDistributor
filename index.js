@@ -42,4 +42,21 @@ export default class TaskManager {
     return this.#getQueueForTaskType(type).getSise()
   }
 
+  getStatistic() {
+    const created = this.#counter
+    const active = this.#tasks.size
+    const deleted = active - created
+    const total = {created, active, deleted}
+    const states = {}
+    Object.values(Task.state).forEach(state => states[state] = 0)
+    this.#tasks.forEach(task => states[task.status]++)
+    const types = []
+    Array.from(this.#queues.entries()).forEach(v => {
+      const type = v[0]
+      const [activeTasks, freeResolvers] = v[1].getSize()
+      types.push([type, activeTasks, freeResolvers, freeResolvers - activeTasks])
+    })
+    return {total, states, types}
+  }
+
 }
