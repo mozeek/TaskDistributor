@@ -11,7 +11,7 @@ export default class Queue {
   }
 
   #resolveTask(task, resolver) {
-    return resolver(task.take())
+    return resolver.requestResolve(task.take())
   }
 
   addTask(task) {
@@ -28,6 +28,7 @@ export default class Queue {
     const task = this.#take(this.#tasks)
     if(task) return this.#resolveTask(task, resolver)
     this.#resolvers.add(resolver)
+    return this.#resolvers.delete.bind(this, resolver)
   }
 
   rmResolver(resolver) {

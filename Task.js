@@ -17,12 +17,13 @@ const VACANT = 'vacant',
       FINISH = 'finish'
 
 export default class Task extends EventEmitter  {
-  #manager; #queue; #timeout; #repeatCooldownTimeout;
+  #manager; #queue; #timeout; #repeatCooldownTimeout; #managerTasks
   static state = {VACANT, QUEUED, RESOLVING, RESULT, FINISH}
-  constructor(id, type, ctx, opts = {}, manager, queue) {
+  constructor(id, type, ctx, opts = {}, manager, queue, managerTasks) {
     super();
     this.#manager = manager
     this.#queue = queue
+    this.#managerTasks = managerTasks
     this.id = id
     this.type = type
     this.ctx = ctx
@@ -32,10 +33,7 @@ export default class Task extends EventEmitter  {
     this.tryes = 0
     this.opts = {}
 
-    const defaults = manager.defaultTaskOptions
-    Object.keys(defaults).forEach(k =>
-      this.opts[k] = opts[k] === undefined ?
-        defaults[k] : opts[k])
+    this.#managerTasks.set(this.id, task)
   }
 
   queue() {
@@ -61,6 +59,7 @@ export default class Task extends EventEmitter  {
   #finish() {
     this.#changeStatus(FINISH, this)
     this.removeAllListeners()
+    this.#managerTasks.delete(this.id)
   }
 
   #clearTimeout() {
@@ -122,7 +121,11 @@ export default class Task extends EventEmitter  {
       return console.warn('trying take task that ' + this.status)
     this.#changeStatus(RESOLVING, resolver.id, resolver.name)
     this.#setResolveTimeout(this.opts.maxResolveAwaitTime)
-    return this
+    return {
+      data: {id: this.id, ctx: this.ctx},
+      deciline: this.decline.bind(this),
+      resolve: this.resolve.bind(this)
+    }
   }
 
 }
