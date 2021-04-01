@@ -24,9 +24,10 @@ export default class Resolver {
     this.#resolvers.delete(this.id)
   }
 
-  resolve(data) {
+  resolve(data, fin) {
     if(this.state !== PROCESS) return
-    this.currentTask.resolve(data)
+    this.currentTask.answer(data, fin)
+    if(!fin) return
     if(this.cycle++ > this.opts.repeatOnceFinished) {
       this.state = FREE
       this.currentTask = null
@@ -44,7 +45,8 @@ export default class Resolver {
   requestResolve(task) {
     this.currentTask = task
     this.state = PROCESS
-    this.#resolvator(this.currentTask.data,
+    this.#resolvator(
+      { ctx: this.currentTask.ctx, id: this.currentTask.id },
       this.resolve.bind(this),
       this.cancel.bind(this))
   }

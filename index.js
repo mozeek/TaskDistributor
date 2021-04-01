@@ -27,11 +27,11 @@ export default class TaskManager {
     return this.#queues.get(type) || this.#queues.set(type, new Queue).get(type)
   }
 
-  createResolver(type, resolvator, opts = {}) {
+  createResolver(type, opts = {}, resolvator) {
     opts = {...this.defaultResolverOptions, ...opts}
     const id = this.#counter.resolvers++
     const queue = this.#getQueueForTaskType(type)
-    return new Resolver(id, type, resolver, opts, queue, this.#resolvers)
+    return new Resolver(id, type, resolvator, opts, queue, this.#resolvers)
   }
 
   createTask(type, ctx, opts = {}) {
@@ -60,14 +60,14 @@ export default class TaskManager {
     tasks.deleted = tasks.created - tasks.active
     tasks.states = {}
     Object.values(Task.state).forEach(state => tasks.states[state] = 0)
-    this.#tasks.forEach(task => states[task.status]++)
+    this.#tasks.forEach(task => tasks.states[task.status]++)
 
     const resolvers = {}
     resolvers.created = this.#counter.resolvers
     resolvers.active = this.#resolvers.size
     resolvers.deleted = resolvers.created - resolvers.active
     resolvers.states = {}
-    Object.values(Resolver.state).forEach(state => resolvers.states[state] = 0)
+    Object.values(Resolver.states).forEach(state => resolvers.states[state] = 0)
     this.#resolvers.forEach(resolver => resolvers.states[resolver.state]++)
 
     const types = []

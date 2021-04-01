@@ -1,22 +1,21 @@
 import TaskManager from "../index.js"
 
 const tm = new TaskManager()
-tm.createTask('test', 'ctx', {repeatOnceResolved: 3})
-  .queue()
-  .on('result', results => console.log(results))
-// tm.createTask('test', 'ctx').queue().once('result', results => console.log(results))
-// tm.createTask('test', 'ctx').queue().once('result', results => console.log(results))
-tm.addResolver('test', task => {
-  task.resolve(task.ctx)
-})
-tm.addResolver('test', task => {
-  console.log(task.ctx)
-  setTimeout(() => task.resolve(task.ctx), 1020)
+const t = tm.createTask('test', 'test').queue()
+
+t.on('status', console.log)
+t.on('answer', console.log)
+t.on('end', task => {
+  console.log('ended')
+  console.log(task.result)
 })
 
-setTimeout(() =>
-  tm.addResolver('test', task => {
-    console.log(task.ctx)
-    task.resolve(task.ctx)
-  }), 1000
-)
+tm.createResolver('test', null, (data, reply, reject) => {
+  console.log(data)
+  reply('hello')
+  reply('hello2')
+  reply('hello3')
+  reply('final hello', true)
+}).queue()
+
+console.log(tm.getStatistic().tasks)

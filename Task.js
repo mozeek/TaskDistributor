@@ -8,17 +8,24 @@ import EventEmitter from "events"
 //return only available actions...
 //all task api are opened internally by default and closed to user by task manager?
 //TaskClientProxy, TaskResolverProxy? preformance?
+//todo: use promises! mb extend from promise so whole task is a promise...
 
-//vacant >> queued > resolving >> <<< results > done
-const VACANT = 'vacant',
-      QUEUED = 'queued',
-      RESOLVING = 'resolving',
-      RESULT = 'result',
-      FINISH = 'finish'
+//events:            ↓ response/error ↑
+//vacant >> queued   >     taken      > resolved > finish
+const
+  VACANT      = 'vacant',
+  QUEUED      = 'queued',
+  TAKEN       = 'taken', // < ERROR < ANSWER
+  RESOLUTION  = 'resolution',
+  ENDED       = 'ended'
+
+const
+  ANSWER      = 'answer',
+  ERROR       = 'error'
 
 export default class Task extends EventEmitter  {
-  #manager; #queue; #timeout; #repeatCooldownTimeout; #managerTasks
-  static state = {VACANT, QUEUED, RESOLVING, RESULT, FINISH}
+  #manager; #queue; #resolutionTimeout; #repeatCooldownTimeout; #managerTasks
+  static state = {VACANT, QUEUED, TAKEN, RESOLUTION, ENDED}
   constructor(id, type, ctx, opts = {}, manager, queue, managerTasks) {
     super();
     this.#manager = manager
@@ -31,24 +38,22 @@ export default class Task extends EventEmitter  {
     this.result = null
     this.cycle = 0
     this.tryes = 0
-    this.opts = {}
+    this.opts = opts
 
-    this.#managerTasks.set(this.id, task)
+    this.#managerTasks.set(this.id, this)
   }
 
   queue() {
     if(this.status === QUEUED)
       return console.warn('trying to queue task that has already been queued')
-    //change status before .addTask to .take() take effect...
     this.#changeStatus(QUEUED)
     this.#queue.addTask(this)
     return this
   }
 
-  unqueue(changeStatus) {
-    //we may not want to change status if we unqueue because of error
+  unqueue() {
     if(this.status !== QUEUED) return false
-    if(changeStatus) this.#changeStatus(VACANT)
+    this.#changeStatus(VACANT)
     return this.#queue.rmTask(this)
   }
 
@@ -56,51 +61,54 @@ export default class Task extends EventEmitter  {
     return this.manager.createTask(this.type, this.ctx, this.opts)
   }
 
-  #finish() {
-    this.#changeStatus(FINISH, this)
+  #end() {
+    this.#changeStatus(ENDED, this.result)
     this.removeAllListeners()
     this.#managerTasks.delete(this.id)
   }
 
-  #clearTimeout() {
-    clearTimeout(this.#timeout)
-    this.#timeout = null
+  #clearResolutionTimeout() {
+    clearTimeout(this.#resolutionTimeout)
+    this.#resolutionTimeout = null
   }
 
-  #setResults(err, results) {
+  #taskGotNewData(err, results) {
     this.result = [err, results]
-    this.#changeStatus(RESULT, this.result)
+    if(err) this.emit(ERROR, err)
+    else this.emit(ANSWER, results)
   }
 
-  resolve(results) {
-    if(this.status !== RESOLVING)
-      return console.warn('trying resolve task that is not in resolving state')
-    this.#clearTimeout()
-    this.#setResults(false, results)
-    if(this.cycle++ > this.opts.repeatOnceResolved) return this.#finish()
+  answer(data, fin) {
+    if(this.status !== TAKEN)
+      return console.warn('trying resolve task that has not been taken')
+    this.#clearResolutionTimeout()
+    this.#taskGotNewData(false, data)
+    if(!fin) return
+    this.#changeStatus(RESOLUTION, data)
+    if(++this.cycle > this.opts.repeatOnceResolved) return this.#end()
     return this.#repeatCooldownTimeout = setTimeout(() =>
       this.#repeat(), this.opts.repeatCooldown)
   }
 
   #repeat() {
     //task may be changed after cooldown timeout (client disconnect or cancell task)
-    if(this.status !== RESULT)
+    if(this.status !== RESOLUTION)
       return console.warn('trying repeat task that is not in right state')
     this.queue()
   }
 
   cancel(reason = 'cancelled by creator') {
-      this.unqueue()
-      this.#setResults(reason)
-      this.#finish()
+    this.unqueue()
+    this.#taskGotNewData(reason)
+    this.#end()
   }
 
   decline(reason) {
-    if(this.status !== RESOLVING)
+    if(this.status !== RESOLUTION)
       return console.warn('declining task that is not resolving')
+    this.#taskGotNewData(reason)
     if(this.tryes++ < this.opts.replaceOnResolvetimeError) return this.queue()
-    this.#setResults(reason)
-    this.#finish()
+    else this.#end()
   }
 
   #changeStatus(status, ...ctx) {
@@ -111,21 +119,17 @@ export default class Task extends EventEmitter  {
 
   #setResolveTimeout(time) {
     if(!time) return
-    this.#timeout = setTimeout(() =>
-      this.status === RESOLVING &&
+    this.#resolutionTimeout = setTimeout(() =>
+      this.status === RESOLUTION &&
       this.decline('timeout'), time)
   }
 
   take(resolver = {}) {
     if(this.status !== VACANT && this.status !== QUEUED)
       return console.warn('trying take task that ' + this.status)
-    this.#changeStatus(RESOLVING, resolver.id, resolver.name)
+    this.#changeStatus(TAKEN, resolver.id, resolver.name)
     this.#setResolveTimeout(this.opts.maxResolveAwaitTime)
-    return {
-      data: {id: this.id, ctx: this.ctx},
-      deciline: this.decline.bind(this),
-      resolve: this.resolve.bind(this)
-    }
+    return this
   }
 
 }
