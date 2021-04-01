@@ -10,18 +10,25 @@ export default class Resolver {
     this.#resolvator = resolvator
     this.#queue = queue
     this.#resolvers = resolvers
+    this.id = id
     this.opts = options
     this.state = FREE
     this.currentTask = null
     this.type = type
     this.cycle = 0
+    this.listeners = [ ]
 
     this.#resolvers.set(this.id, this)
+  }
+
+  onceFinish(cb) {
+    this.listeners.push(cb)
   }
 
   #finish() {
     this.state = FINISHED
     this.#resolvers.delete(this.id)
+    while(this.listeners.length) this.listeners.pop()()
   }
 
   resolve(data, fin) {
