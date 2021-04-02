@@ -44,8 +44,8 @@ export default class Resolver {
   }
 
   cancel(reason) {
-    if(this.state === QUEUED) return this.unqueue()
-    if(this.state === PROCESS) return this.currentTask.decline(reason)
+    if(this.state === QUEUED) this.unqueue()
+    else if(this.state === PROCESS) this.currentTask.decline(reason)
     this.#finish()
   }
 
@@ -53,7 +53,7 @@ export default class Resolver {
     this.currentTask = task
     this.state = PROCESS
     this.#resolvator(
-      { ctx: this.currentTask.ctx, id: this.currentTask.id },
+      this.currentTask,
       this.resolve.bind(this),
       this.cancel.bind(this))
   }
@@ -62,7 +62,8 @@ export default class Resolver {
     if(this.state !== FREE)
       return console.warn('task is not in free state')
     this.#queue.addResolver(this)
-    this.state = FREE
+    this.state = QUEUED
+    return this
   }
 
   unqueue() {

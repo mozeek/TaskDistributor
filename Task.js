@@ -21,7 +21,7 @@ const
 
 const
   ANSWER      = 'answer',
-  ERROR       = 'error'
+  ERROR       = 'err'
 
 export default class Task extends EventEmitter  {
   #manager; #queue; #resolutionTimeout; #repeatCooldownTimeout; #managerTasks
