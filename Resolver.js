@@ -19,6 +19,7 @@ export default class Resolver {
     this.listeners = [ ]
 
     this.#resolvers.set(this.id, this)
+    // setInterval(() => {console.log(this.state)}, 5000)
   }
 
   onceFinish(cb) {
@@ -61,8 +62,8 @@ export default class Resolver {
   queue() {
     if(this.state !== FREE)
       return console.warn('task is not in free state')
-    this.#queue.addResolver(this)
     this.state = QUEUED
+    this.#queue.addResolver(this)
     return this
   }
 

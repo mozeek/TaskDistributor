@@ -83,7 +83,7 @@ export default class Task extends EventEmitter  {
       return console.warn('trying resolve task that has not been taken')
     this.#clearResolutionTimeout()
     this.#taskGotNewData(false, data)
-    if(!fin) return
+    if(!fin) return //нужно как-то пометить фин???
     this.#changeStatus(RESOLUTION, data)
     if(++this.cycle > this.opts.repeatOnceResolved) return this.#end()
     return this.#repeatCooldownTimeout = setTimeout(() =>
@@ -104,7 +104,8 @@ export default class Task extends EventEmitter  {
   }
 
   decline(reason) {
-    if(this.status !== RESOLUTION)
+    console.log('decline called on ' + this.id)
+    if(this.status !== TAKEN)
       return console.warn('declining task that is not resolving')
     this.#taskGotNewData(reason)
     if(this.tryes++ < this.opts.replaceOnResolvetimeError) return this.queue()
